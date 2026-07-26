@@ -1,0 +1,348 @@
+{
+  "catalogVersion": 1,
+  "note": "iOS port of emuladores.json. Android routes ROMs through explicit Intents with a file path; iOS has no equivalent. Emulators here are detected with canOpenURL (schemes must also be listed in LSApplicationQueriesSchemes) and receive ROMs through the system document handoff (UIDocumentInteractionController / share sheet), which is the only transfer path that works across sandboxes without private API. 'launchOnly' emulators can be opened but cannot be handed a specific ROM.",
+  "platforms": [
+    {
+      "id": "nes",
+      "name": "Nintendo Entertainment System",
+      "shortName": "NES",
+      "icon": "nes",
+      "retroAchievementsId": 7,
+      "romExtensions": ["nes", "fds", "unf", "unif", "zip", "7z"],
+      "emulators": ["delta", "provenance", "retroarch", "folium"]
+    },
+    {
+      "id": "famicom",
+      "name": "Nintendo Famicom",
+      "shortName": "Famicom",
+      "icon": "famicom",
+      "retroAchievementsId": 7,
+      "romExtensions": ["nes", "fds", "zip", "7z"],
+      "emulators": ["delta", "provenance", "retroarch"]
+    },
+    {
+      "id": "fds",
+      "name": "Famicom Disk System",
+      "shortName": "FDS",
+      "icon": "fds",
+      "retroAchievementsId": 7,
+      "romExtensions": ["fds", "zip"],
+      "emulators": ["provenance", "retroarch"]
+    },
+    {
+      "id": "snes",
+      "name": "Super Nintendo Entertainment System",
+      "shortName": "SNES",
+      "icon": "snes",
+      "retroAchievementsId": 3,
+      "romExtensions": ["smc", "sfc", "fig", "swc", "zip", "7z"],
+      "emulators": ["delta", "provenance", "retroarch", "folium"]
+    },
+    {
+      "id": "snesna",
+      "name": "Super Nintendo (North America)",
+      "shortName": "SNES NA",
+      "icon": "snesna",
+      "retroAchievementsId": 3,
+      "romExtensions": ["smc", "sfc", "zip"],
+      "emulators": ["delta", "provenance", "retroarch"]
+    },
+    {
+      "id": "sfc",
+      "name": "Super Famicom",
+      "shortName": "Super Famicom",
+      "icon": "sfc",
+      "retroAchievementsId": 3,
+      "romExtensions": ["smc", "sfc", "zip"],
+      "emulators": ["delta", "provenance", "retroarch"]
+    },
+    {
+      "id": "sgb",
+      "name": "Super Game Boy",
+      "shortName": "SGB",
+      "icon": "sgb",
+      "retroAchievementsId": 4,
+      "romExtensions": ["gb", "sgb", "zip"],
+      "emulators": ["provenance", "retroarch"]
+    },
+    {
+      "id": "gb",
+      "name": "Nintendo Game Boy",
+      "shortName": "Game Boy",
+      "icon": "gb",
+      "retroAchievementsId": 4,
+      "romExtensions": ["gb", "zip"],
+      "emulators": ["delta", "folium", "provenance", "retroarch"]
+    },
+    {
+      "id": "gbc",
+      "name": "Nintendo Game Boy Color",
+      "shortName": "Game Boy Color",
+      "icon": "gbc",
+      "retroAchievementsId": 6,
+      "romExtensions": ["gbc", "gb", "zip"],
+      "emulators": ["delta", "folium", "provenance", "retroarch"]
+    },
+    {
+      "id": "gba",
+      "name": "Nintendo Game Boy Advance",
+      "shortName": "GBA",
+      "icon": "gba",
+      "retroAchievementsId": 5,
+      "romExtensions": ["gba", "zip", "7z"],
+      "emulators": ["delta", "folium", "provenance", "retroarch"]
+    },
+    {
+      "id": "nds",
+      "name": "Nintendo DS",
+      "shortName": "DS",
+      "icon": "nds",
+      "retroAchievementsId": 18,
+      "romExtensions": ["nds", "zip"],
+      "emulators": ["delta", "folium", "melonds", "retroarch"]
+    },
+    {
+      "id": "n3ds",
+      "name": "Nintendo 3DS",
+      "shortName": "3DS",
+      "icon": "n3ds",
+      "retroAchievementsId": 62,
+      "romExtensions": ["3ds", "cci", "cxi", "app", "cia"],
+      "emulators": ["folium"]
+    },
+    {
+      "id": "n64",
+      "name": "Nintendo 64",
+      "shortName": "N64",
+      "icon": "n64",
+      "retroAchievementsId": 2,
+      "romExtensions": ["n64", "v64", "z64", "zip"],
+      "emulators": ["delta", "provenance", "retroarch", "mupen64plus"]
+    },
+    {
+      "id": "n64dd",
+      "name": "Nintendo 64DD",
+      "shortName": "64DD",
+      "icon": "n64dd",
+      "retroAchievementsId": 2,
+      "romExtensions": ["ndd", "n64", "zip"],
+      "emulators": ["retroarch"]
+    },
+    {
+      "id": "gc",
+      "name": "Nintendo GameCube",
+      "shortName": "GameCube",
+      "icon": "gc",
+      "retroAchievementsId": 16,
+      "romExtensions": ["iso", "gcm", "gcz", "rvz", "ciso"],
+      "emulators": ["dolphinios"]
+    },
+    {
+      "id": "wii",
+      "name": "Nintendo Wii",
+      "shortName": "Wii",
+      "icon": "wii",
+      "retroAchievementsId": 19,
+      "romExtensions": ["iso", "wbfs", "rvz", "wad", "ciso"],
+      "emulators": ["dolphinios"]
+    },
+    {
+      "id": "wiiu",
+      "name": "Nintendo Wii U",
+      "shortName": "Wii U",
+      "icon": "wiiu",
+      "retroAchievementsId": 20,
+      "romExtensions": ["wud", "wux", "rpx", "wua"],
+      "emulators": []
+    },
+    {
+      "id": "switch",
+      "name": "Nintendo Switch",
+      "shortName": "Switch",
+      "icon": "switch",
+      "retroAchievementsId": null,
+      "romExtensions": ["nsp", "xci", "nca"],
+      "emulators": []
+    },
+    {
+      "id": "psx",
+      "name": "Sony PlayStation",
+      "shortName": "PS1",
+      "icon": "psx",
+      "retroAchievementsId": 12,
+      "romExtensions": ["cue", "bin", "chd", "pbp", "iso", "img", "m3u"],
+      "emulators": ["gamma", "provenance", "retroarch"]
+    },
+    {
+      "id": "ps2",
+      "name": "Sony PlayStation 2",
+      "shortName": "PS2",
+      "icon": "ps2",
+      "retroAchievementsId": 21,
+      "romExtensions": ["iso", "chd", "cso", "bin"],
+      "emulators": ["play"]
+    },
+    {
+      "id": "psp",
+      "name": "Sony PlayStation Portable",
+      "shortName": "PSP",
+      "icon": "psp",
+      "retroAchievementsId": 41,
+      "romExtensions": ["iso", "cso", "pbp", "chd"],
+      "emulators": ["ppsspp", "retroarch"]
+    },
+    {
+      "id": "vita",
+      "name": "Sony PlayStation Vita",
+      "shortName": "Vita",
+      "icon": "vita",
+      "retroAchievementsId": null,
+      "romExtensions": ["vpk", "zip"],
+      "emulators": ["vita3k"]
+    },
+    {
+      "id": "megadrive",
+      "name": "Sega Mega Drive / Genesis",
+      "shortName": "Mega Drive",
+      "icon": "megadrive",
+      "retroAchievementsId": 1,
+      "romExtensions": ["md", "gen", "bin", "smd", "zip"],
+      "emulators": ["delta", "provenance", "retroarch"]
+    },
+    {
+      "id": "gamegear",
+      "name": "Sega Game Gear",
+      "shortName": "Game Gear",
+      "icon": "gamegear",
+      "retroAchievementsId": 15,
+      "romExtensions": ["gg", "zip"],
+      "emulators": ["provenance", "retroarch"]
+    },
+    {
+      "id": "dreamcast",
+      "name": "Sega Dreamcast",
+      "shortName": "Dreamcast",
+      "icon": "dreamcast",
+      "retroAchievementsId": 40,
+      "romExtensions": ["cdi", "gdi", "chd", "cue"],
+      "emulators": ["retroarch"]
+    },
+    {
+      "id": "saturn",
+      "name": "Sega Saturn",
+      "shortName": "Saturn",
+      "icon": "saturn",
+      "retroAchievementsId": 39,
+      "romExtensions": ["cue", "chd", "iso", "bin"],
+      "emulators": ["retroarch"]
+    },
+    {
+      "id": "ngp",
+      "name": "SNK Neo Geo Pocket",
+      "shortName": "Neo Geo Pocket",
+      "icon": "ngp",
+      "retroAchievementsId": 14,
+      "romExtensions": ["ngp", "zip"],
+      "emulators": ["provenance", "retroarch"]
+    },
+    {
+      "id": "ngpc",
+      "name": "SNK Neo Geo Pocket Color",
+      "shortName": "NGPC",
+      "icon": "ngpc",
+      "retroAchievementsId": 14,
+      "romExtensions": ["ngc", "ngp", "zip"],
+      "emulators": ["provenance", "retroarch"]
+    }
+  ],
+  "emulators": [
+    {
+      "id": "delta",
+      "name": "Delta",
+      "scheme": "delta",
+      "installUrl": "https://faq.deltaemulator.com",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    },
+    {
+      "id": "folium",
+      "name": "Folium",
+      "scheme": "folium",
+      "installUrl": "https://apps.apple.com/app/folium/id6498623389",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    },
+    {
+      "id": "retroarch",
+      "name": "RetroArch",
+      "scheme": "retroarch",
+      "installUrl": "https://apps.apple.com/app/retroarch/id6499539433",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    },
+    {
+      "id": "ppsspp",
+      "name": "PPSSPP",
+      "scheme": "ppsspp",
+      "installUrl": "https://www.ppsspp.org",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    },
+    {
+      "id": "dolphinios",
+      "name": "DolphiniOS",
+      "scheme": "dolphinios",
+      "installUrl": "https://dolphinios.oatmealdome.me",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    },
+    {
+      "id": "provenance",
+      "name": "Provenance",
+      "scheme": "provenance",
+      "installUrl": "https://provenance-emu.com",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    },
+    {
+      "id": "play",
+      "name": "Play!",
+      "scheme": "play",
+      "installUrl": "https://purei.org",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    },
+    {
+      "id": "vita3k",
+      "name": "Vita3K",
+      "scheme": "vita3k",
+      "installUrl": "https://vita3k.org",
+      "acceptsDocuments": false,
+      "launchOnly": true
+    },
+    {
+      "id": "melonds",
+      "name": "melonDS",
+      "scheme": "melonds",
+      "installUrl": "https://melonds.kuribo64.net",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    },
+    {
+      "id": "gamma",
+      "name": "Gamma",
+      "scheme": "gamma",
+      "installUrl": "https://apps.apple.com/app/gamma-emulator/id6480860971",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    },
+    {
+      "id": "mupen64plus",
+      "name": "Mupen64Plus",
+      "scheme": "mupen64plus",
+      "installUrl": "https://mupen64plus.org",
+      "acceptsDocuments": true,
+      "launchOnly": false
+    }
+  ]
+}

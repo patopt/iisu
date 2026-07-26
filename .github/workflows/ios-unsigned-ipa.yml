@@ -1,0 +1,169 @@
+name: iOS · unsigned IPA
+
+# Builds iiSU for iOS without code signing. The resulting .ipa cannot be
+# installed through the App Store or ad-hoc distribution — it is meant to be
+# signed by the end user with AltStore, SideStore, Sideloadly or similar.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    tags:
+      - 'ios-v*'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-unsigned-ipa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SCHEME: iiSU
+  PROJECT: ios/iiSU.xcodeproj
+  ARCHIVE_PATH: build/iiSU.xcarchive
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: |
+          xcodegen generate --spec ios/project.yml
+          xcodebuild -list -project "${PROJECT}"
+
+      - name: Resolve version
+        id: version
+        run: |
+          # An ios-v* tag drives the marketing version; any other ref builds as
+          # 0.0.0 so untagged artifacts are obviously not releases.
+          if [[ "${GITHUB_REF}" == refs/tags/ios-v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/ios-v}"
+          else
+            VERSION="0.0.0"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "Building version ${VERSION} (${GITHUB_RUN_NUMBER})"
+
+      - name: Archive (unsigned)
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild archive \
+            -project "${PROJECT}" \
+            -scheme "${SCHEME}" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "${ARCHIVE_PATH}" \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            CURRENT_PROJECT_VERSION="${{ steps.version.outputs.build }}" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            ONLY_ACTIVE_ARCH=NO \
+            2>&1 | tee build/xcodebuild.log
+
+      - name: Package IPA
+        id: package
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find "${ARCHIVE_PATH}/Products/Applications" -maxdepth 1 -name '*.app' | head -n 1)"
+          if [[ -z "${APP_PATH}" ]]; then
+            echo "::error::No .app was produced in the archive"
+            exit 1
+          fi
+          echo "Packaging ${APP_PATH}"
+
+          # An IPA is a zip with the app under a top-level Payload/ directory.
+          rm -rf build/Payload
+          mkdir -p build/Payload
+          cp -R "${APP_PATH}" build/Payload/
+
+          IPA_NAME="iiSU-${{ steps.version.outputs.version }}-${{ steps.version.outputs.build }}-unsigned.ipa"
+          (cd build && zip -qry "${IPA_NAME}" Payload)
+
+          echo "ipa_name=${IPA_NAME}" >> "$GITHUB_OUTPUT"
+          echo "ipa_path=build/${IPA_NAME}" >> "$GITHUB_OUTPUT"
+          ls -lh "build/${IPA_NAME}"
+
+      - name: Verify IPA contents
+        run: |
+          set -euo pipefail
+          IPA="${{ steps.package.outputs.ipa_path }}"
+
+          unzip -l "${IPA}" | head -n 25
+
+          # A usable IPA must carry an Info.plist and a Mach-O binary.
+          unzip -p "${IPA}" 'Payload/*.app/Info.plist' > /tmp/Info.plist
+          plutil -p /tmp/Info.plist | grep -E \
+            'CFBundleIdentifier|CFBundleShortVersionString|CFBundleVersion|MinimumOSVersion|CFBundleExecutable'
+
+          if ! unzip -l "${IPA}" | grep -q 'Payload/iiSU.app/iiSU'; then
+            echo "::error::The app bundle contains no executable"
+            exit 1
+          fi
+
+          if unzip -l "${IPA}" | grep -q '_CodeSignature'; then
+            echo "::notice::Bundle carries a signature; it still needs re-signing to install."
+          else
+            echo "No embedded code signature, as expected for an unsigned build."
+          fi
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.ipa_name }}
+          path: ${{ steps.package.outputs.ipa_path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: build/xcodebuild.log
+          if-no-files-found: ignore
+
+  release:
+    name: Attach IPA to release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/ios-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download IPA
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.ipa
+          body: |
+            Unsigned iOS build of iiSU.
+
+            This IPA is **not signed**. Install it with AltStore, SideStore or
+            Sideloadly, which sign it with your own Apple ID on device.

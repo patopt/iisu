@@ -1,0 +1,96 @@
+name: iiSU
+options:
+  bundleIdPrefix: network.iisu
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_BITCODE: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+# Explicit scheme: Xcode only auto-creates schemes when a human opens the
+# project, so a headless `xcodebuild -scheme iiSU` would otherwise fail.
+schemes:
+  iiSU:
+    build:
+      targets:
+        iiSU: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+
+targets:
+  iiSU:
+    type: application
+    platform: iOS
+    sources:
+      - path: iiSU/Sources
+      - path: iiSU/Resources/Assets.xcassets
+        buildPhase: resources
+      # Folder reference: keeps the flat PNG set in a "Platforms" subdirectory
+      # of the bundle instead of dumping 93 files into the bundle root.
+      - path: iiSU/Resources/Platforms
+        type: folder
+        buildPhase: resources
+      - path: iiSU/Resources/emulators.ios.json
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: network.iisu.launcher
+        PRODUCT_NAME: iiSU
+        INFOPLIST_KEY_CFBundleDisplayName: iiSU
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        SWIFT_EMIT_LOC_STRINGS: YES
+        # Sideload builds are unsigned; CI overrides these on the command line
+        # anyway, but keeping them empty here makes local unsigned builds work.
+        DEVELOPMENT_TEAM: ""
+    info:
+      path: iiSU/Info.plist
+      properties:
+        CFBundleDisplayName: iiSU
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIUserInterfaceStyle: Dark
+        UIRequiresFullScreen: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        "UISupportedInterfaceOrientations~ipad":
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # Lets users drop ROMs straight into the app container over
+        # Finder/iTunes file sharing and see them in the Files app. This is the
+        # iOS replacement for the Android build's free-roaming SD-card scan.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        # Gamepad support: iiSU is controller-first on Android and stays so here.
+        GCSupportsControllerUserInteraction: true
+        UIApplicationSupportsIndirectInputEvents: true
+        # canOpenURL() silently returns false for any scheme not declared here,
+        # so emulator detection breaks without this list.
+        LSApplicationQueriesSchemes:
+          - delta
+          - folium
+          - retroarch
+          - ppsspp
+          - dolphinios
+          - provenance
+          - play
+          - vita3k
+          - melonds
+          - gamma
+          - mupen64plus
