@@ -7,11 +7,10 @@ struct PlatformDetailView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var gamepad: GamepadManager
+    @Environment(\.dismiss) private var dismiss
 
     @State private var selectedIndex = 0
     @State private var searchText = ""
-
-    private let columnCount = 3
 
     private var games: [Game] {
         let all = library.games(for: platform)
@@ -25,58 +24,112 @@ struct PlatformDetailView: View {
 
     var body: some View {
         ZStack {
-            BackgroundGradient()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-                    emulatorStatus
+            ArtworkBackground(platform: platform)
 
-                    if games.isEmpty {
-                        emptyState
-                    } else {
-                        LazyVGrid(
-                            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columnCount),
-                            spacing: 16
-                        ) {
-                            ForEach(Array(games.enumerated()), id: \.element.id) { index, game in
-                                NavigationLink(value: HomeView.Route.game(game)) {
-                                    GameTile(
-                                        game: game,
-                                        platform: platform,
-                                        isSelected: index == selectedIndex,
-                                        width: 104
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
+            VStack(spacing: 0) {
+                TopBar(
+                    title: platform.name,
+                    subtitle: "\(library.games(for: platform).count) games",
+                    libraryCount: library.totalGameCount
+                )
+                .padding(.horizontal, 14)
+                .padding(.top, 6)
+
+                content
+
+                HStack(alignment: .bottom) {
+                    ButtonHintBar([ButtonHint(glyph: "B", label: "Back")])
+                    Spacer()
+                    ButtonHintBar([ButtonHint(glyph: "A", label: "Select")])
                 }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 40)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
             }
         }
-        .searchable(text: $searchText, prompt: "Search \(platform.shortName)")
-        .navigationTitle(platform.shortName)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .onReceive(gamepad.events) { handle($0) }
     }
 
-    private var header: some View {
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                hero
+                emulatorStatus
+
+                if games.isEmpty {
+                    emptyState
+                } else {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 96, maximum: 134), spacing: 12)],
+                        spacing: 12
+                    ) {
+                        ForEach(Array(games.enumerated()), id: \.element.id) { index, game in
+                            NavigationLink(value: HomeView.Route.game(game)) {
+                                GameTile(
+                                    game: game,
+                                    platform: platform,
+                                    isSelected: index == selectedIndex,
+                                    accent: settings.accent.color
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var hero: some View {
         HStack(spacing: 14) {
-            PlatformIcon(platform: platform, variant: .tile, cornerRadius: 14)
-                .frame(width: 68, height: 68)
+            PlatformIcon(platform: platform, variant: .tile, cornerRadius: Theme.Radius.md)
+                .frame(width: 72, height: 72)
             VStack(alignment: .leading, spacing: 3) {
                 Text(platform.name)
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                Text("\(library.games(for: platform).count) games")
-                    .font(.footnote)
-                    .foregroundColor(.white.opacity(0.55))
+                    .font(.system(size: 19, weight: .heavy, design: .rounded))
+                    .foregroundColor(Theme.textPrimary)
+                Text(platform.romExtensions.prefix(5).map { "." + $0 }.joined(separator: " "))
+                    .font(.caption2)
+                    .foregroundColor(Theme.textTertiary)
+                    .lineLimit(1)
             }
-            Spacer()
+            Spacer(minLength: 0)
+            searchField
         }
-        .padding(.top, 8)
+        .padding(12)
+        .glass(cornerRadius: Theme.Radius.lg)
+    }
+
+    /// Inline rather than `.searchable`: the navigation bar is hidden so the
+    /// system search field would have nowhere to appear.
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.caption.weight(.bold))
+                .foregroundColor(Theme.textTertiary)
+            TextField("", text: $searchText, prompt: Text("Search").foregroundColor(Theme.textTertiary))
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundColor(Theme.textPrimary)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .frame(width: 130)
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(Theme.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .glass(cornerRadius: Theme.Radius.full)
     }
 
     @ViewBuilder
@@ -101,33 +154,33 @@ struct PlatformDetailView: View {
     }
 
     private var emptyState: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(searchText.isEmpty ? "Nothing here yet" : "No matches")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                if searchText.isEmpty {
-                    Text("Drop \(platform.romExtensions.prefix(4).map { "." + $0 }.joined(separator: ", ")) files into ROMs/\(platform.id)/.")
-                        .font(.footnote)
-                        .foregroundColor(.white.opacity(0.6))
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            Text(searchText.isEmpty ? "Nothing here yet" : "No matches")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(Theme.textPrimary)
+            if searchText.isEmpty {
+                Text("Drop \(platform.romExtensions.prefix(4).map { "." + $0 }.joined(separator: ", ")) files into ROMs/\(platform.id)/.")
+                    .font(.footnote)
+                    .foregroundColor(Theme.textSecondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .glass(cornerRadius: Theme.Radius.lg)
     }
 
     private func handle(_ event: GamepadEvent) {
-        guard !games.isEmpty else { return }
         switch event {
-        case .left:
+        case .back:
+            dismiss()
+        case .left where !games.isEmpty:
             selectedIndex = max(0, selectedIndex - 1)
-        case .right:
+        case .right where !games.isEmpty:
             selectedIndex = min(games.count - 1, selectedIndex + 1)
-        case .up:
-            selectedIndex = max(0, selectedIndex - columnCount)
-        case .down:
-            selectedIndex = min(games.count - 1, selectedIndex + columnCount)
+        case .up where !games.isEmpty:
+            selectedIndex = max(0, selectedIndex - 4)
+        case .down where !games.isEmpty:
+            selectedIndex = min(games.count - 1, selectedIndex + 4)
         default:
             break
         }
@@ -142,17 +195,14 @@ struct InfoBanner: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: icon)
                 .font(.footnote.weight(.bold))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(Theme.textPrimary)
             Text(text)
                 .font(.footnote)
-                .foregroundColor(.white.opacity(0.72))
+                .foregroundColor(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.white.opacity(0.06))
-        )
+        .glass(cornerRadius: Theme.Radius.sm)
     }
 }

@@ -39,6 +39,10 @@ targets:
       - path: iiSU/Resources/Platforms
         type: folder
         buildPhase: resources
+      # iiSU's own icon set and wordmark, taken from iisu.network.
+      - path: iiSU/Resources/Brand
+        type: folder
+        buildPhase: resources
       - path: iiSU/Resources/emulators.ios.json
         buildPhase: resources
     settings:

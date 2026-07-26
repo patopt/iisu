@@ -28,13 +28,15 @@ final class AppSettings: ObservableObject {
 
         var id: String { rawValue }
 
+        /// Anchored on the brand gradient stops so a themed accent always sits
+        /// inside iiSU's palette rather than beside it.
         var color: Color {
             switch self {
-            case .violet: return Color(hex: 0x8258FA)
-            case .magenta: return Color(hex: 0xFF00BF)
-            case .cyan: return Color(hex: 0x00C8FF)
-            case .lime: return Color(hex: 0x7CFA58)
-            case .amber: return Color(hex: 0xFFB020)
+            case .violet: return Theme.gradient1
+            case .magenta: return Color(hex: 0xE23FB0)
+            case .cyan: return Theme.gradient3
+            case .lime: return Color(hex: 0x3FD9A0)
+            case .amber: return Color(hex: 0xE59E18)
             }
         }
 
@@ -79,17 +81,5 @@ final class AppSettings: ObservableObject {
         showEmptyPlatforms = defaults.bool(forKey: Key.showEmptyPlatforms)
         hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
         retroAchievementsUser = defaults.string(forKey: Key.retroAchievementsUser) ?? ""
-    }
-}
-
-extension Color {
-    init(hex: UInt32) {
-        self.init(
-            .sRGB,
-            red: Double((hex >> 16) & 0xFF) / 255,
-            green: Double((hex >> 8) & 0xFF) / 255,
-            blue: Double(hex & 0xFF) / 255,
-            opacity: 1
-        )
     }
 }

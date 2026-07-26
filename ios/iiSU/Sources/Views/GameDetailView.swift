@@ -22,20 +22,29 @@ struct GameDetailView: View {
 
     var body: some View {
         ZStack {
-            BackgroundGradient()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    hero
-                    playSection
-                    emulatorList
-                    quickSettings
+            ArtworkBackground(platform: platform)
+
+            VStack(spacing: 0) {
+                TopBar(
+                    title: game.title,
+                    subtitle: platform?.name,
+                    libraryCount: library.totalGameCount
+                )
+                .padding(.horizontal, 14)
+                .padding(.top, 6)
+
+                content
+
+                HStack(alignment: .bottom) {
+                    ButtonHintBar([ButtonHint(glyph: "B", label: "Back")])
+                    Spacer()
+                    ButtonHintBar([ButtonHint(glyph: "A", label: "Play")])
                 }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 40)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
             }
         }
-        .navigationTitle(game.title)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .confirmationDialog(
             "Delete \(game.title)?",
             isPresented: $showingDeleteConfirmation,
@@ -57,29 +66,42 @@ struct GameDetailView: View {
         } message: {
             Text(errorMessage ?? "")
         }
+        .onReceive(gamepad.events) { event in
+            if event == .back { dismiss() }
+        }
+    }
+
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                hero
+                playSection
+                emulatorList
+                quickSettings
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var hero: some View {
-        HStack(alignment: .top, spacing: 16) {
-            if let platform {
-                PlatformIcon(platform: platform, variant: .tile, cornerRadius: 16)
-                    .frame(width: 96, height: 96)
-            }
-            VStack(alignment: .leading, spacing: 5) {
+        HStack(alignment: .top, spacing: 14) {
+            GameTile(game: game, platform: platform, side: 104, accent: settings.accent.color)
+            VStack(alignment: .leading, spacing: 4) {
                 Text(game.title)
-                    .font(.system(size: 21, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                    .font(.system(size: 20, weight: .heavy, design: .rounded))
+                    .foregroundColor(Theme.textPrimary)
                 Text(platform?.name ?? game.platformId)
                     .font(.footnote)
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(Theme.textSecondary)
                 Text("\(game.formattedSize) · \(game.fileName)")
                     .font(.caption2)
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundColor(Theme.textTertiary)
                     .lineLimit(2)
             }
             Spacer(minLength: 0)
         }
-        .padding(.top, 8)
     }
 
     private var playSection: some View {
@@ -87,12 +109,16 @@ struct GameDetailView: View {
             // The share sheet is the only supported way to hand a file in our
             // container to another app's sandbox, so "Play" opens it directly.
             ShareLink(item: game.url) {
-                Label("Play — send to emulator", systemImage: "play.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                HStack(spacing: 8) {
+                    Image(systemName: "play.fill")
+                    Text("Play — send to emulator")
+                }
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundColor(Theme.textPrimary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .glass(cornerRadius: Theme.Radius.full, strong: true, highlighted: true, accent: settings.accent.color)
             }
-            .buttonStyle(.borderedProminent)
 
             InfoBanner(
                 icon: "info.circle",
@@ -108,7 +134,7 @@ struct GameDetailView: View {
     @ViewBuilder
     private var emulatorList: some View {
         if !emulators.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 SectionHeader(title: "Emulators", subtitle: "Detected on this device")
                 ForEach(emulators) { emulator in
                     emulatorRow(emulator)
@@ -119,41 +145,43 @@ struct GameDetailView: View {
 
     private func emulatorRow(_ emulator: EmulatorSpec) -> some View {
         let availability = EmulatorLauncher.availability(of: emulator)
-        return GlassCard(cornerRadius: 14) {
-            HStack(spacing: 12) {
-                Image(systemName: iconName(for: availability))
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(tint(for: availability))
-                    .frame(width: 22)
+        return HStack(spacing: 12) {
+            Image(systemName: iconName(for: availability))
+                .font(.body.weight(.semibold))
+                .foregroundColor(tint(for: availability))
+                .frame(width: 22)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(emulator.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.white)
-                    Text(label(for: availability))
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.5))
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(emulator.name)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(Theme.textPrimary)
+                Text(label(for: availability))
+                    .font(.caption2)
+                    .foregroundColor(Theme.textTertiary)
+            }
 
-                Spacer()
+            Spacer()
 
-                switch availability {
-                case .notInstalled:
-                    Button("Get") { EmulatorLauncher.openInstallPage(emulator) }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                case .installed, .launchOnly:
-                    Button("Open") { EmulatorLauncher.open(emulator) }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+            Button(availability == .notInstalled ? "Get" : "Open") {
+                if availability == .notInstalled {
+                    EmulatorLauncher.openInstallPage(emulator)
+                } else {
+                    EmulatorLauncher.open(emulator)
                 }
             }
-            .padding(12)
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundColor(Theme.textPrimary)
+            .padding(.horizontal, 13)
+            .padding(.vertical, 6)
+            .glass(cornerRadius: Theme.Radius.full)
+            .buttonStyle(.plain)
         }
+        .padding(12)
+        .glass(cornerRadius: Theme.Radius.sm)
     }
 
     private var quickSettings: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: "Quick Settings", subtitle: nil)
 
             Button {
@@ -186,18 +214,17 @@ struct GameDetailView: View {
     }
 
     private func quickRow(icon: String, title: String, destructive: Bool = false) -> some View {
-        GlassCard(cornerRadius: 14) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .frame(width: 22)
-                    .foregroundColor(destructive ? .red : settings.accent.color)
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundColor(destructive ? .red : .white)
-                Spacer()
-            }
-            .padding(12)
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .frame(width: 22)
+                .foregroundColor(destructive ? .red : settings.accent.color)
+            Text(title)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundColor(destructive ? .red : Theme.textPrimary)
+            Spacer()
         }
+        .padding(12)
+        .glass(cornerRadius: Theme.Radius.sm)
     }
 
     private func delete() {
@@ -219,9 +246,9 @@ struct GameDetailView: View {
 
     private func tint(for availability: EmulatorLauncher.Availability) -> Color {
         switch availability {
-        case .installed: return .green
-        case .launchOnly: return .yellow
-        case .notInstalled: return .white.opacity(0.35)
+        case .installed: return Color(hex: 0x3FD9A0)
+        case .launchOnly: return Color(hex: 0xE59E18)
+        case .notInstalled: return Theme.textTertiary
         }
     }
 

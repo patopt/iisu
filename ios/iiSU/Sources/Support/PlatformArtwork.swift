@@ -62,7 +62,7 @@ struct PlatformIcon: View {
     private var fallback: some View {
         ZStack {
             LinearGradient(
-                colors: [settings.accent.color.opacity(0.65), Color(hex: 0x3700DA).opacity(0.75)],
+                colors: [settings.accent.color.opacity(0.7), Theme.gradient1.opacity(0.8)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

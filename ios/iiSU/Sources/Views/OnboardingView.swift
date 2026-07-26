@@ -18,7 +18,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            BackgroundGradient()
+            ArtworkBackground()
             VStack(spacing: 0) {
                 progressBar
                 ScrollView {
@@ -58,17 +58,20 @@ struct OnboardingView: View {
     private var stepContent: some View {
         switch step {
         case .welcome:
-            OnboardingPage(
-                title: "Welcome to iiSU",
-                subtitle: "The visuals-first emulation frontend, now on iOS.",
-                message: """
-                iiSU organises and launches the games you already own. It is a frontend — \
-                it ships no games and no emulators.
+            VStack(alignment: .leading, spacing: 18) {
+                Wordmark(height: 40)
+                OnboardingPage(
+                    title: "Welcome",
+                    subtitle: "The visuals-first emulation frontend, now on iOS.",
+                    message: """
+                    iiSU organises and launches the games you already own. It is a \
+                    frontend — it ships no games and no emulators.
 
-                One difference from the Android build: iOS does not let an app replace the \
-                home screen, so iiSU runs as a normal app here.
-                """
-            )
+                    One difference from the Android build: iOS does not let an app \
+                    replace the home screen, so iiSU runs as a normal app here.
+                    """
+                )
+            }
         case .customisation:
             VStack(alignment: .leading, spacing: 22) {
                 OnboardingPage(
@@ -79,7 +82,7 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Theme colour")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.white.opacity(0.75))
+                        .foregroundColor(Theme.textSecondary)
                     HStack(spacing: 12) {
                         ForEach(AppSettings.Accent.allCases) { accent in
                             Button {
@@ -109,7 +112,7 @@ struct OnboardingView: View {
 
                     Toggle("Swap A/B and X/Y buttons", isOn: $settings.swapConfirmButtons)
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundColor(Theme.textPrimary)
                 }
             }
         case .roms:
@@ -127,11 +130,13 @@ struct OnboardingView: View {
                     showingImporter = true
                 } label: {
                     Label("Import ROMs", systemImage: "square.and.arrow.down")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(Theme.textPrimary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 13)
+                        .glass(cornerRadius: Theme.Radius.full, strong: true)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
 
                 if importedCount > 0 {
                     Label("\(importedCount) file\(importedCount == 1 ? "" : "s") imported", systemImage: "checkmark.circle.fill")
@@ -159,7 +164,12 @@ struct OnboardingView: View {
                 Button("Back") {
                     step = Step(rawValue: step.rawValue - 1) ?? .welcome
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundColor(Theme.textSecondary)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 11)
+                .glass(cornerRadius: Theme.Radius.full)
             }
             Spacer()
             Button(step == .overview ? "Start" : "Next") {
@@ -169,7 +179,12 @@ struct OnboardingView: View {
                     step = Step(rawValue: step.rawValue + 1) ?? .overview
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
+            .font(.system(size: 14, weight: .bold, design: .rounded))
+            .foregroundColor(Theme.textPrimary)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 11)
+            .glass(cornerRadius: Theme.Radius.full, strong: true, highlighted: true, accent: settings.accent.color)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 18)
@@ -185,14 +200,14 @@ private struct OnboardingPage: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.system(size: 30, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundColor(Theme.textPrimary)
             Text(subtitle)
                 .font(.headline)
-                .foregroundColor(.white.opacity(0.75))
+                .foregroundColor(Theme.textSecondary)
             if let message {
                 Text(message)
                     .font(.callout)
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(Theme.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

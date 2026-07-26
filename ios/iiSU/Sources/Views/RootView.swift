@@ -33,7 +33,7 @@ private struct CatalogFailureView: View {
 
     var body: some View {
         ZStack {
-            BackgroundGradient()
+            ArtworkBackground()
             VStack(spacing: 14) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 44))

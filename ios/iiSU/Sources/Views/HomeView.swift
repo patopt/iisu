@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// The frontend shell: artwork backdrop, status bar, a section body, and the
+/// dock with controller hints — the same structure as the Android build.
 struct HomeView: View {
 
     enum Route: Hashable {
@@ -13,26 +15,40 @@ struct HomeView: View {
     @EnvironmentObject private var gamepad: GamepadManager
 
     @State private var path: [Route] = []
+    @State private var section: DockSection = .home
     @State private var selectedIndex = 0
     @State private var showingImporter = false
     @State private var importMessage: String?
 
-    /// Platforms shown on the home screen — populated ones, or everything if
-    /// the user opted to see empty systems too.
     private var platforms: [PlatformSpec] {
         settings.showEmptyPlatforms ? library.catalog.platforms : library.populatedPlatforms
     }
 
-    private let columnCount = 3
+    private var allGames: [Game] {
+        library.gamesByPlatform.values.flatMap { $0 }
+            .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    }
+
+    /// The platform driving the background artwork and the title pill.
+    private var focusedPlatform: PlatformSpec? {
+        switch section {
+        case .home:
+            return platforms.indices.contains(selectedIndex) ? platforms[selectedIndex] : platforms.first
+        case .games:
+            guard allGames.indices.contains(selectedIndex) else { return nil }
+            return library.catalog.platform(id: allGames[selectedIndex].platformId)
+        default:
+            return nil
+        }
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                BackgroundGradient()
-                content
+                ArtworkBackground(platform: focusedPlatform)
+                shell
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { toolbarContent }
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .platform(let platform):
@@ -64,170 +80,228 @@ struct HomeView: View {
             Text(importMessage ?? "")
         }
         .onReceive(gamepad.events) { handle($0) }
+        .onChange(of: section) { _ in selectedIndex = 0 }
     }
 
-    // MARK: - Content
+    // MARK: - Shell
 
-    private var content: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
-                HomeHeader(gameCount: library.totalGameCount, platformCount: library.populatedPlatforms.count)
+    private var shell: some View {
+        VStack(spacing: 0) {
+            TopBar(
+                title: titleText,
+                subtitle: subtitleText,
+                libraryCount: library.totalGameCount
+            )
+            .padding(.horizontal, 14)
+            .padding(.top, 6)
 
-                if library.totalGameCount == 0 {
-                    EmptyLibraryCard(romsPath: library.romsDirectory.lastPathComponent) {
-                        showingImporter = true
+            sectionBody
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            bottomBar
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
+        }
+    }
+
+    private var titleText: String {
+        switch section {
+        case .home:
+            return focusedPlatform?.name ?? "iiSU"
+        case .games:
+            guard allGames.indices.contains(selectedIndex) else { return "All games" }
+            return allGames[selectedIndex].title
+        default:
+            return section.title
+        }
+    }
+
+    private var subtitleText: String? {
+        switch section {
+        case .home:
+            guard let p = focusedPlatform else { return "No games yet" }
+            return "\(library.games(for: p).count) games"
+        case .games:
+            return "\(allGames.count) games"
+        default:
+            return nil
+        }
+    }
+
+    @ViewBuilder
+    private var sectionBody: some View {
+        switch section {
+        case .home:
+            homeSection
+        case .games:
+            gamesSection
+        case .achievements:
+            AchievementsPanel()
+        case .community:
+            CommunityPanel()
+        case .settings:
+            settingsSection
+        }
+    }
+
+    // MARK: - Sections
+
+    @ViewBuilder
+    private var homeSection: some View {
+        if library.totalGameCount == 0 && platforms.isEmpty {
+            emptyLibrary
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    if !library.homeShortcuts.isEmpty {
+                        shortcutRow(title: "Home", games: library.homeShortcuts)
                     }
+                    if !library.recentlyAdded.isEmpty {
+                        shortcutRow(title: "Recently added", games: library.recentlyAdded)
+                    }
+                    platformGrid
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+            .refreshable { await library.scan() }
+        }
+    }
 
-                if !library.homeShortcuts.isEmpty {
-                    gameRow(title: "Home", subtitle: "Pinned from Quick Settings", games: library.homeShortcuts)
-                }
-
-                if !library.recentlyAdded.isEmpty {
-                    gameRow(title: "Recently added", subtitle: nil, games: library.recentlyAdded)
-                }
-
-                if !platforms.isEmpty {
-                    platformSection
+    private var platformGrid: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Systems", subtitle: nil)
+            LazyVGrid(columns: adaptiveColumns(minimum: 104), spacing: 12) {
+                ForEach(Array(platforms.enumerated()), id: \.element.id) { index, platform in
+                    Button {
+                        path.append(.platform(platform))
+                    } label: {
+                        PlatformTile(
+                            platform: platform,
+                            gameCount: library.games(for: platform).count,
+                            isSelected: index == selectedIndex,
+                            accent: settings.accent.color
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 40)
+        }
+    }
+
+    private var gamesSection: some View {
+        ScrollView {
+            LazyVGrid(columns: adaptiveColumns(minimum: 96), spacing: 12) {
+                ForEach(Array(allGames.enumerated()), id: \.element.id) { index, game in
+                    Button {
+                        path.append(.game(game))
+                    } label: {
+                        GameTile(
+                            game: game,
+                            platform: library.catalog.platform(id: game.platformId),
+                            isSelected: index == selectedIndex,
+                            accent: settings.accent.color
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
         }
         .refreshable { await library.scan() }
     }
 
-    private func gameRow(title: String, subtitle: String?, games: [Game]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: title, subtitle: subtitle)
+    private var settingsSection: some View {
+        VStack(spacing: 14) {
+            Spacer()
+            BrandIcon(name: "", fallbackSymbol: "gearshape.fill", size: 44)
+            Text("Settings")
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(Theme.textPrimary)
+            Button {
+                path.append(.settings)
+            } label: {
+                Text("Open settings")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(Theme.textPrimary)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 11)
+                    .glass(cornerRadius: Theme.Radius.full, strong: true)
+            }
+            .buttonStyle(.plain)
+            Spacer()
+        }
+    }
+
+    private func shortcutRow(title: String, games: [Game]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: title, subtitle: nil)
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     ForEach(games) { game in
                         Button {
                             path.append(.game(game))
                         } label: {
-                            GameTile(game: game, platform: library.catalog.platform(id: game.platformId))
+                            GameTile(
+                                game: game,
+                                platform: library.catalog.platform(id: game.platformId),
+                                side: 88,
+                                accent: settings.accent.color
+                            )
                         }
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 3)
             }
         }
     }
 
-    private var platformSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(
-                title: "Systems",
-                subtitle: gamepad.isConnected ? "D-pad to browse · A to open" : nil
-            )
+    private var emptyLibrary: some View {
+        VStack(spacing: 14) {
+            Wordmark(height: 34)
+            Text("No games yet")
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(Theme.textPrimary)
+            Text("""
+            iOS apps cannot scan the device for ROMs the way the Android build does. \
+            Put files in On My iPhone › iiSU › ROMs › <system>, or import them here.
+            """)
+            .font(.footnote)
+            .foregroundColor(Theme.textSecondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 420)
 
-            if settings.browsingStyle == .grid {
-                LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columnCount),
-                    spacing: 12
-                ) {
-                    ForEach(Array(platforms.enumerated()), id: \.element.id) { index, platform in
-                        platformButton(platform, isSelected: index == selectedIndex)
-                    }
-                }
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(Array(platforms.enumerated()), id: \.element.id) { index, platform in
-                        platformRow(platform, isSelected: index == selectedIndex)
-                    }
-                }
-            }
-        }
-    }
-
-    private func platformButton(_ platform: PlatformSpec, isSelected: Bool) -> some View {
-        Button {
-            path.append(.platform(platform))
-        } label: {
-            GlassCard(isHighlighted: isSelected) {
-                VStack(spacing: 8) {
-                    PlatformIcon(platform: platform, variant: .tile, cornerRadius: 12)
-                        .frame(height: 84)
-                        .padding(.horizontal, 10)
-                        .padding(.top, 10)
-                    Text(platform.shortName)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.85))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Text("\(library.games(for: platform).count)")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.45))
-                        .padding(.bottom, 10)
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func platformRow(_ platform: PlatformSpec, isSelected: Bool) -> some View {
-        Button {
-            path.append(.platform(platform))
-        } label: {
-            GlassCard(isHighlighted: isSelected, cornerRadius: 14) {
-                HStack(spacing: 14) {
-                    PlatformIcon(platform: platform, variant: .tile, cornerRadius: 10)
-                        .frame(width: 46, height: 46)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(platform.name)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                        Text("\(library.games(for: platform).count) games")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.5))
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.bold))
-                        .foregroundColor(.white.opacity(0.35))
-                }
-                .padding(12)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
-            HStack(spacing: 8) {
-                Text("iiSU")
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color(hex: 0xC56EFF), Color(hex: 0xFF00BF)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                if gamepad.isConnected {
-                    Image(systemName: "gamecontroller.fill")
-                        .font(.footnote)
-                        .foregroundColor(settings.accent.color)
-                }
-            }
-        }
-        ToolbarItemGroup(placement: .navigationBarTrailing) {
             Button {
                 showingImporter = true
             } label: {
-                Image(systemName: "square.and.arrow.down")
+                Label("Import ROMs", systemImage: "square.and.arrow.down")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(Theme.textPrimary)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 11)
+                    .glass(cornerRadius: Theme.Radius.full, strong: true)
             }
-            Button {
-                path.append(.settings)
-            } label: {
-                Image(systemName: "gearshape.fill")
-            }
+            .buttonStyle(.plain)
         }
+        .padding(28)
+    }
+
+    // MARK: - Bottom bar
+
+    private var bottomBar: some View {
+        HStack(alignment: .bottom) {
+            ButtonHintBar([ButtonHint(glyph: "B", label: "Back"), ButtonHint(glyph: "⊖", label: "Details")])
+            Spacer(minLength: 8)
+            Dock(selection: $section)
+            Spacer(minLength: 8)
+            ButtonHintBar([ButtonHint(glyph: "A", label: "Select"), ButtonHint(glyph: "⊕", label: "Menu")])
+        }
+    }
+
+    private func adaptiveColumns(minimum: CGFloat) -> [GridItem] {
+        [GridItem(.adaptive(minimum: minimum, maximum: minimum * 1.4), spacing: 12)]
     }
 
     // MARK: - Actions
@@ -251,78 +325,69 @@ struct HomeView: View {
     }
 
     private func handle(_ event: GamepadEvent) {
-        guard path.isEmpty, !platforms.isEmpty else { return }
+        guard path.isEmpty else { return }
+
+        let count: Int
+        switch section {
+        case .home: count = platforms.count
+        case .games: count = allGames.count
+        default: count = 0
+        }
+
         switch event {
-        case .left:
-            selectedIndex = max(0, selectedIndex - 1)
-        case .right:
-            selectedIndex = min(platforms.count - 1, selectedIndex + 1)
-        case .up:
-            let step = settings.browsingStyle == .grid ? columnCount : 1
-            selectedIndex = max(0, selectedIndex - step)
-        case .down:
-            let step = settings.browsingStyle == .grid ? columnCount : 1
-            selectedIndex = min(platforms.count - 1, selectedIndex + step)
-        case .confirm:
-            // A rescan can shrink the list while a selection is held.
-            guard platforms.indices.contains(selectedIndex) else { return }
-            path.append(.platform(platforms[selectedIndex]))
+        case .shoulderLeft:
+            section = section.previous
+        case .shoulderRight:
+            section = section.next
         case .menu:
             path.append(.settings)
         case .options:
             showingImporter = true
+        case .left where count > 0:
+            selectedIndex = max(0, selectedIndex - 1)
+        case .right where count > 0:
+            selectedIndex = min(count - 1, selectedIndex + 1)
+        case .up where count > 0:
+            selectedIndex = max(0, selectedIndex - gridStride)
+        case .down where count > 0:
+            selectedIndex = min(count - 1, selectedIndex + gridStride)
+        case .confirm:
+            openSelection()
+        default:
+            break
+        }
+    }
+
+    /// The adaptive grid decides its own column count at layout time, so the
+    /// vertical step is an approximation rather than a read of the real grid.
+    private var gridStride: Int { 4 }
+
+    private func openSelection() {
+        switch section {
+        case .home:
+            guard platforms.indices.contains(selectedIndex) else { return }
+            path.append(.platform(platforms[selectedIndex]))
+        case .games:
+            guard allGames.indices.contains(selectedIndex) else { return }
+            path.append(.game(allGames[selectedIndex]))
+        case .settings:
+            path.append(.settings)
         default:
             break
         }
     }
 }
 
-private struct HomeHeader: View {
-    let gameCount: Int
-    let platformCount: Int
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Your library")
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
-            Text("\(gameCount) games across \(platformCount) systems")
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.55))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 6)
+private extension DockSection {
+    var next: DockSection {
+        let all = DockSection.allCases
+        let i = all.firstIndex(of: self) ?? 0
+        return all[(i + 1) % all.count]
     }
-}
 
-private struct EmptyLibraryCard: View {
-    let romsPath: String
-    let onImport: () -> Void
-
-    var body: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("No games yet", systemImage: "tray")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                Text("""
-                iOS apps cannot scan the device for ROMs the way the Android build does. \
-                Put files in the app's \(romsPath)/<system>/ folder — reachable from the \
-                Files app under "On My iPhone › iiSU", or over Finder file sharing — or \
-                import them here.
-                """)
-                .font(.footnote)
-                .foregroundColor(.white.opacity(0.65))
-
-                Button(action: onImport) {
-                    Label("Import ROMs", systemImage: "square.and.arrow.down")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding(16)
-        }
+    var previous: DockSection {
+        let all = DockSection.allCases
+        let i = all.firstIndex(of: self) ?? 0
+        return all[(i - 1 + all.count) % all.count]
     }
 }

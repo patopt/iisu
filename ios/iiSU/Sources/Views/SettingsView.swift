@@ -21,7 +21,7 @@ struct SettingsView: View {
             aboutSection
         }
         .scrollContentBackground(.hidden)
-        .background(BackgroundGradient())
+        .background(ArtworkBackground())
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { apiKeyDraft = achievements.apiKey }
